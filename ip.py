@@ -1,4 +1,6 @@
-from iputils import *
+from grader.iputils import read_ipv4_header, IPPROTO_TCP
+from grader.tcputils import str2addr
+import struct
 
 
 class IP:
@@ -15,8 +17,18 @@ class IP:
         self.meu_endereco = None
 
     def __raw_recv(self, datagrama):
-        dscp, ecn, identification, flags, frag_offset, ttl, proto, \
-           src_addr, dst_addr, payload = read_ipv4_header(datagrama)
+        (
+            dscp,
+            ecn,
+            identification,
+            flags,
+            frag_offset,
+            ttl,
+            proto,
+            src_addr,
+            dst_addr,
+            payload,
+        ) = read_ipv4_header(datagrama)
         if dst_addr == self.meu_endereco:
             # atua como host
             if proto == IPPROTO_TCP and self.callback:
@@ -28,10 +40,19 @@ class IP:
             self.enlace.enviar(datagrama, next_hop)
 
     def _next_hop(self, dest_addr):
-        # TODO: Use a tabela de encaminhamento para determinar o próximo salto
-        # (next_hop) a partir do endereço de destino do datagrama (dest_addr).
-        # Retorne o next_hop para o dest_addr fornecido.
-        pass
+        (destino, ) = struct.unpack('!I', str2addr(dest_addr))
+
+        for cidr, next_hop in self.tabela:
+            cidr, n = cidr.split('/')
+            (cidr, ) = struct.unpack('!I', str2addr(cidr))
+            n = 32 - int(n)
+            cidr = cidr >> n << n
+            possivel_destino = destino >> n << n
+            if possivel_destino == cidr:
+                return next_hop
+        return None
+
+
 
     def definir_endereco_host(self, meu_endereco):
         """
@@ -49,9 +70,7 @@ class IP:
         Onde os CIDR são fornecidos no formato 'x.y.z.w/n', e os
         next_hop são fornecidos no formato 'x.y.z.w'.
         """
-        # TODO: Guarde a tabela de encaminhamento. Se julgar conveniente,
-        # converta-a em uma estrutura de dados mais eficiente.
-        pass
+        self.tabela = tabela
 
     def registrar_recebedor(self, callback):
         """

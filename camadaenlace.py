@@ -9,13 +9,17 @@ class CamadaEnlaceLinux:
     ignore_checksum = True
 
     def __init__(self):
-        self.fd = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
+        self.fd = socket.socket(
+            socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP
+        )
         self.fd.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
         asyncio.get_event_loop().add_reader(self.fd, self.__raw_recv)
         self.callback = None
 
     def __raw_recv(self):
-        datagrama = self.fd.recv(12000)  # número suficientemente grande para a maioria das camadas de enlace
+        datagrama = self.fd.recv(
+            12000
+        )  # número suficientemente grande para a maioria das camadas de enlace
         if self.callback:
             self.callback(datagrama)
 
