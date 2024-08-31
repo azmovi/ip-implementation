@@ -1,5 +1,5 @@
 from grader.iputils import read_ipv4_header, IPPROTO_TCP
-from grader.tcputils import str2addr
+from grader.tcputils import calc_checksum, str2addr
 import struct
 
 
@@ -15,6 +15,7 @@ class IP:
         self.enlace.registrar_recebedor(self.__raw_recv)
         self.ignore_checksum = self.enlace.ignore_checksum
         self.meu_endereco = None
+        self.id = 0
 
     def __raw_recv(self, datagrama):
         (
@@ -84,6 +85,30 @@ class IP:
         (string no formato x.y.z.w).
         """
         next_hop = self._next_hop(dest_addr)
-        # TODO: Assumindo que a camada superior é o protocolo TCP, monte o
-        # datagrama com o cabeçalho IP, contendo como payload o segmento.
+
+        ipv4 = self.criar_ipv4(segmento, dest_addr)
+
+        ip_header = struct.pack('!BBHHHBBHII', *ipv4)
+        header_checksum = calc_checksum(ip_header)
+
+        ipv4[7] = header_checksum
+        ip_header = struct.pack('!BBHHHBBHII', *ipv4)
+
+        datagrama = ip_header + segmento
         self.enlace.enviar(datagrama, next_hop)
+
+    def criar_ipv4(self, segmento, dest_addr):
+        """
+        Cria o ipv4 com os campos versão, IHL, DSCP, ECN, tamanho total, identificação,
+        flags, fragmento, ttl, protocolo, header checksum, ip de saida e ip de destino.
+        """
+        id = self.id 
+        self.id += 1
+
+        src_ip = str2addr(self.meu_endereco)
+        (src_ip, ) = struct.unpack('!I', src_ip)
+
+        dst_ip = str2addr(dest_addr)
+        (dst_ip, ) = struct.unpack('!I', dst_ip)
+
+        return [0x45, 0x00, 0x20 + len(segmento), id, 0x00, 0x64, 0x06, 0x00, src_ip, dst_ip]
